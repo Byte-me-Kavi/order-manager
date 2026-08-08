@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { flushSync } from 'react-dom'
 import { supabase } from '@/lib/supabase'
 import ExcelJS from 'exceljs'
 import { saveAs } from 'file-saver'
@@ -13,6 +14,8 @@ export default function ManagerDashboard({ user }: { user: any }) {
   const [availableWaybills, setAvailableWaybills] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [singleOrderToPrint, setSingleOrderToPrint] = useState<any>(null)
+  const [fromPhone, setFromPhone] = useState('')
 
   const printRef = useRef<HTMLDivElement>(null)
   const handlePrint = useReactToPrint({
@@ -78,7 +81,12 @@ export default function ManagerDashboard({ user }: { user: any }) {
     const { error: insertError } = await supabase.from('orders').insert([payload])
 
     if (insertError) {
-      alert('Error saving order: ' + insertError.message)
+      if (insertError.code === '23505') {
+        alert('This Waybill ID was just taken by someone else! Please select a different one.')
+        fetchOrders()
+      } else {
+        alert('Error saving order: ' + insertError.message)
+      }
     } else {
       // Mark waybill as used
       await supabase.from('waybills').update({ is_used: true }).eq('waybill_id', payload.waybill_id)
@@ -257,7 +265,7 @@ export default function ManagerDashboard({ user }: { user: any }) {
             <button 
               type="submit" 
               disabled={saving}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+              className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto px-6 py-3 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Order'}
             </button>
@@ -266,23 +274,29 @@ export default function ManagerDashboard({ user }: { user: any }) {
       </div>
 
       {/* Orders Table */}
-      <div className="bg-white border border-slate-200 shadow-sm rounded-2xl overflow-hidden">
-        <div className="p-6 border-b border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="bg-transparent md:bg-white md:border md:border-slate-200 md:shadow-sm rounded-2xl md:overflow-hidden">
+        <div className="p-4 md:p-6 md:border-b border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white rounded-2xl md:rounded-none shadow-sm md:shadow-none mb-4 md:mb-0 border border-slate-200 md:border-none">
           <h2 className="text-xl font-semibold text-slate-900">My Orders</h2>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
             <button 
               onClick={() => {
                 if (orders.length === 0) return alert('No orders to print.')
+                const phone = window.prompt('Enter the telephone number for the FROM address on the receipts:', '')
+                if (phone === null) return
+                flushSync(() => {
+                  setFromPhone(phone)
+                  setSingleOrderToPrint(null)
+                })
                 handlePrint()
               }}
-              className="flex items-center gap-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              className="flex items-center justify-center gap-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 px-4 py-3 sm:py-2 rounded-xl text-sm font-medium transition-colors w-full sm:w-auto"
             >
               <Printer className="w-4 h-4" />
-              Print Receipts
+              Print All Receipts
             </button>
             <button 
               onClick={handleExport}
-              className="flex items-center gap-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              className="flex items-center justify-center gap-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 px-4 py-3 sm:py-2 rounded-xl text-sm font-medium transition-colors w-full sm:w-auto"
             >
               <Download className="w-4 h-4" />
               Export to Excel
@@ -290,14 +304,14 @@ export default function ManagerDashboard({ user }: { user: any }) {
           </div>
         </div>
         
-        <div className="overflow-x-auto">
+        <div>
           {loading ? (
             <div className="p-12 flex justify-center"><Loader2 className="w-6 h-6 text-blue-600 animate-spin" /></div>
           ) : orders.length === 0 ? (
-            <div className="p-12 text-center text-slate-500">No orders entered yet.</div>
+            <div className="p-12 text-center text-slate-500 bg-white rounded-2xl">No orders entered yet.</div>
           ) : (
-            <table className="w-full text-sm text-left text-slate-700">
-              <thead className="bg-slate-50 text-slate-600 border-b border-slate-200">
+            <table className="w-full text-sm text-left text-slate-700 block md:table">
+              <thead className="bg-slate-50 text-slate-600 border-b border-slate-200 hidden md:table-header-group">
                 <tr>
                   <th className="px-6 py-4 font-medium">Waybill Id</th>
                   <th className="px-6 py-4 font-medium">Order #</th>
@@ -306,18 +320,58 @@ export default function ManagerDashboard({ user }: { user: any }) {
                   <th className="px-6 py-4 font-medium">City</th>
                   <th className="px-6 py-4 font-medium">Phone</th>
                   <th className="px-6 py-4 font-medium">COD</th>
+                  <th className="px-6 py-4 font-medium text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 block md:table-row-group">
                 {orders.map((order) => (
-                  <tr key={order.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-blue-600">{order.waybill_id}</td>
-                    <td className="px-6 py-4">{order.order_number}</td>
-                    <td className="px-6 py-4">{order.receiver_name}</td>
-                    <td className="px-6 py-4 max-w-xs truncate" title={order.delivery_address}>{order.delivery_address}</td>
-                    <td className="px-6 py-4">{order.city}</td>
-                    <td className="px-6 py-4">{order.receiver_phone}</td>
-                    <td className="px-6 py-4 font-medium">{order.cod}</td>
+                  <tr key={order.id} className="hover:bg-slate-50 transition-colors block md:table-row bg-white border border-slate-200 md:border-none rounded-2xl md:rounded-none mb-4 md:mb-0 shadow-sm md:shadow-none">
+                    <td className="px-4 py-3 md:px-6 md:py-4 block md:table-cell border-b border-slate-100 md:border-none">
+                      <div className="flex md:hidden text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Waybill Id</div>
+                      <span className="font-medium text-blue-600">{order.waybill_id}</span>
+                    </td>
+                    <td className="px-4 py-3 md:px-6 md:py-4 block md:table-cell border-b border-slate-100 md:border-none">
+                      <div className="flex md:hidden text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Order #</div>
+                      {order.order_number}
+                    </td>
+                    <td className="px-4 py-3 md:px-6 md:py-4 block md:table-cell border-b border-slate-100 md:border-none">
+                      <div className="flex md:hidden text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Receiver Name</div>
+                      {order.receiver_name}
+                    </td>
+                    <td className="px-4 py-3 md:px-6 md:py-4 block md:table-cell border-b border-slate-100 md:border-none md:max-w-xs md:truncate" title={order.delivery_address}>
+                      <div className="flex md:hidden text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Delivery Address</div>
+                      {order.delivery_address}
+                    </td>
+                    <td className="px-4 py-3 md:px-6 md:py-4 block md:table-cell border-b border-slate-100 md:border-none">
+                      <div className="flex md:hidden text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">City</div>
+                      {order.city}
+                    </td>
+                    <td className="px-4 py-3 md:px-6 md:py-4 block md:table-cell border-b border-slate-100 md:border-none">
+                      <div className="flex md:hidden text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Phone</div>
+                      {order.receiver_phone}
+                    </td>
+                    <td className="px-4 py-3 md:px-6 md:py-4 block md:table-cell border-b border-slate-100 md:border-none">
+                      <div className="flex md:hidden text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">COD Amount</div>
+                      <span className="font-medium text-slate-900">{order.cod}</span>
+                    </td>
+                    <td className="px-4 py-3 md:px-6 md:py-4 block md:table-cell text-left md:text-right bg-slate-50 md:bg-transparent rounded-b-2xl md:rounded-none">
+                      <button
+                        onClick={() => {
+                          const phone = window.prompt('Enter the telephone number for the FROM address on the receipt:', '')
+                          if (phone === null) return
+                          flushSync(() => {
+                            setFromPhone(phone)
+                            setSingleOrderToPrint(order)
+                          })
+                          handlePrint()
+                        }}
+                        className="p-2 sm:p-1.5 w-full md:w-auto text-indigo-600 md:text-slate-400 md:hover:text-indigo-600 hover:bg-indigo-100 md:hover:bg-indigo-50 rounded-lg md:rounded-md transition-colors flex items-center justify-center gap-2"
+                        title="Print Receipt"
+                      >
+                        <Printer className="w-4 h-4" />
+                        <span className="md:hidden text-sm font-medium">Print Receipt</span>
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -328,7 +382,7 @@ export default function ManagerDashboard({ user }: { user: any }) {
 
       {/* Hidden Print View */}
       <div className="hidden">
-        <ReceiptsPrintView ref={printRef} orders={orders} />
+        <ReceiptsPrintView ref={printRef} orders={singleOrderToPrint ? [singleOrderToPrint] : orders} fromPhone={fromPhone} />
       </div>
     </div>
   )

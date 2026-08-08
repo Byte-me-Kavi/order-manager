@@ -3,10 +3,11 @@ import Barcode from 'react-barcode'
 
 interface ReceiptsPrintViewProps {
   orders: any[]
+  fromPhone: string
 }
 
 const ReceiptsPrintView = forwardRef<HTMLDivElement, ReceiptsPrintViewProps>(
-  ({ orders }, ref) => {
+  ({ orders, fromPhone }, ref) => {
     // Group orders into pages of 6
     const pages = []
     for (let i = 0; i < orders.length; i += 6) {
@@ -38,9 +39,9 @@ const ReceiptsPrintView = forwardRef<HTMLDivElement, ReceiptsPrintViewProps>(
                   {/* FROM Section */}
                   <div className="text-[11px] mb-1 pb-1 border-b border-gray-200 leading-snug shrink-0">
                     <div className="font-bold text-gray-500 mb-0.5 tracking-wider text-[9px]">FROM</div>
-                    <div className="font-semibold text-gray-900">Agasthi Jewellery</div>
-                    <div className="text-gray-700">No. 235, Kandy Road, Warakapola.</div>
-                    <div className="text-gray-700">Tel: 0769952205</div>
+                    <div className="font-semibold text-gray-900">Lassana lk</div>
+                    <div className="text-gray-700">Peradeniya</div>
+                    <div className="text-gray-700">Tel: {fromPhone}</div>
                   </div>
 
                   {/* TO Section */}
