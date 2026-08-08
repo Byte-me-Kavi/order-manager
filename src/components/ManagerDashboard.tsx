@@ -275,7 +275,7 @@ export default function ManagerDashboard({ user }: { user: any }) {
 
       {/* Orders Table */}
       <div className="bg-transparent md:bg-white md:border md:border-slate-200 md:shadow-sm rounded-2xl md:overflow-hidden">
-        <div className="p-4 md:p-6 md:border-b border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white rounded-2xl md:rounded-none shadow-sm md:shadow-none mb-4 md:mb-0 border border-slate-200 md:border-none">
+        <div className="p-4 md:p-6 md:border-b flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white rounded-2xl md:rounded-none shadow-sm md:shadow-none mb-4 md:mb-0 border border-slate-200 md:border-none">
           <h2 className="text-xl font-semibold text-slate-900">My Orders</h2>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
             <button 

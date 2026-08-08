@@ -21,6 +21,7 @@ export default function AdminDashboard({ user }: { user: any }) {
 
   const [startRange, setStartRange] = useState('')
   const [endRange, setEndRange] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
 
   // Waybill Generation State
   const [genStart, setGenStart] = useState('')
@@ -50,16 +51,37 @@ export default function AdminDashboard({ user }: { user: any }) {
   // without spamming the database, since admins view all anyway.
   const filteredOrders = useMemo(() => {
     return orders.filter(order => {
+      // Range Filter
       const waybill = Number(order.waybill_id)
       const min = startRange ? Number(startRange) : 0
       const max = endRange ? Number(endRange) : Infinity
 
-      if (startRange && endRange) return waybill >= min && waybill <= max
-      if (startRange) return waybill >= min
-      if (endRange) return waybill <= max
+      let inRange = true
+      if (startRange && endRange) inRange = waybill >= min && waybill <= max
+      else if (startRange) inRange = waybill >= min
+      else if (endRange) inRange = waybill <= max
+
+      if (!inRange) return false
+
+      // Search Filter
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase()
+        const matchesSearch = 
+          order.waybill_id?.toString().toLowerCase().includes(term) ||
+          order.order_number?.toLowerCase().includes(term) ||
+          order.receiver_name?.toLowerCase().includes(term) ||
+          order.delivery_address?.toLowerCase().includes(term) ||
+          order.city?.toLowerCase().includes(term) ||
+          order.receiver_phone?.toLowerCase().includes(term) ||
+          order.cod?.toString().toLowerCase().includes(term) ||
+          order.manager_id?.toLowerCase().includes(term)
+
+        if (!matchesSearch) return false
+      }
+
       return true
     })
-  }, [orders, startRange, endRange])
+  }, [orders, startRange, endRange, searchTerm])
 
   const handleGenerateWaybills = async (e: React.FormEvent) => {
     e.preventDefault()
