@@ -42,7 +42,7 @@ export default function ManagerDashboard({ user }: { user: any }) {
 
   const fetchOrders = async () => {
     const [ordersRes, waybillsRes] = await Promise.all([
-      supabase.from('orders').select('*').order('created_at', { ascending: false }),
+      supabase.from('orders').select('*').eq('manager_id', user.id).order('created_at', { ascending: false }),
       supabase.from('waybills').select('waybill_id').eq('is_used', false).order('waybill_id', { ascending: true })
     ])
     
