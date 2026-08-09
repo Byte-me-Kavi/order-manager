@@ -34,7 +34,7 @@ const ReceiptsPrintView = forwardRef<HTMLDivElement, ReceiptsPrintViewProps>(
           >
             <div className="grid grid-cols-2 grid-rows-3 gap-[10mm] w-full h-full">
               {pageOrders.map((order, i) => (
-                <div key={i} className="border border-gray-400 p-3 flex flex-col justify-between h-full overflow-hidden rounded-xl bg-white shadow-sm">
+                <div key={i} className="border border-gray-400 p-2 flex flex-col justify-between h-full overflow-hidden rounded-xl bg-white shadow-sm">
                   
                   {/* FROM Section */}
                   <div className="text-[11px] mb-1 pb-1 border-b border-gray-200 leading-snug shrink-0">
@@ -45,7 +45,7 @@ const ReceiptsPrintView = forwardRef<HTMLDivElement, ReceiptsPrintViewProps>(
                   </div>
 
                   {/* TO Section */}
-                  <div className="text-sm flex-1 flex flex-col justify-center py-1 min-h-0">
+                  <div className="text-sm flex-1 flex flex-col justify-start py-0.5 min-h-0">
                     <div className="font-bold text-gray-500 mb-0.5 tracking-wider text-[10px]">TO</div>
                     <div className="font-bold text-base text-gray-900 leading-tight truncate">{order.receiver_name}</div>
                     <div className="text-gray-800 leading-snug mt-0.5 line-clamp-2">{order.delivery_address}</div>
@@ -65,12 +65,12 @@ const ReceiptsPrintView = forwardRef<HTMLDivElement, ReceiptsPrintViewProps>(
                   </div>
 
                   {/* Barcode Section */}
-                  <div className="mt-2 flex justify-center border-t border-gray-200 pt-2 shrink-0">
+                  <div className="mt-1 flex justify-center border-t border-gray-200 pt-1 shrink-0">
                     <Barcode 
                       value={order.waybill_id.toString()} 
                       width={1.5} 
-                      height={35} 
-                      fontSize={12} 
+                      height={30} 
+                      fontSize={11} 
                       margin={0} 
                       displayValue={true}
                       background="transparent"
