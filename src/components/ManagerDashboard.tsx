@@ -209,13 +209,12 @@ export default function ManagerDashboard({ user }: { user: any }) {
 
     setDeleting(true)
     const orderIdsToDelete = Array.from(selectedOrders)
-    const ordersToDelete = orders.filter(o => selectedOrders.has(o.id))
-    const waybillIdsToFree = ordersToDelete.map(o => o.waybill_id)
+    const waybillIdsToFree = orderIdsToDelete
 
     const { error: deleteError } = await supabase
       .from('orders')
       .delete()
-      .in('id', orderIdsToDelete)
+      .in('waybill_id', waybillIdsToFree)
 
     if (deleteError) {
       alert('Error deleting orders: ' + deleteError.message)
@@ -245,7 +244,7 @@ export default function ManagerDashboard({ user }: { user: any }) {
     const { error: deleteError } = await supabase
       .from('orders')
       .delete()
-      .in('id', orders.map(o => o.id))
+      .in('waybill_id', waybillIdsToFree)
 
     if (deleteError) {
       alert('Error deleting orders: ' + deleteError.message)
@@ -418,7 +417,7 @@ export default function ManagerDashboard({ user }: { user: any }) {
                       checked={orders.length > 0 && selectedOrders.size === orders.length}
                       onChange={(e) => {
                         if (e.target.checked) {
-                          setSelectedOrders(new Set(orders.map(o => o.id)))
+                          setSelectedOrders(new Set(orders.map(o => o.waybill_id)))
                         } else {
                           setSelectedOrders(new Set())
                         }
@@ -437,19 +436,19 @@ export default function ManagerDashboard({ user }: { user: any }) {
               </thead>
               <tbody className="divide-y divide-slate-100 block md:table-row-group">
                 {orders.map((order) => (
-                  <tr key={order.id} className={`hover:bg-slate-50 transition-colors block md:table-row bg-white border border-slate-200 md:border-none rounded-2xl md:rounded-none mb-4 md:mb-0 shadow-sm md:shadow-none ${selectedOrders.has(order.id) ? 'bg-blue-50/50' : ''}`}>
+                  <tr key={order.waybill_id} className={`hover:bg-slate-50 transition-colors block md:table-row bg-white border border-slate-200 md:border-none rounded-2xl md:rounded-none mb-4 md:mb-0 shadow-sm md:shadow-none ${selectedOrders.has(order.waybill_id) ? 'bg-blue-50/50' : ''}`}>
                     <td className="px-4 py-3 md:px-6 md:py-4 block md:table-cell border-b border-slate-100 md:border-none">
                       <div className="flex md:hidden text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Select</div>
                       <input 
                         type="checkbox" 
                         className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
-                        checked={selectedOrders.has(order.id)}
+                        checked={selectedOrders.has(order.waybill_id)}
                         onChange={(e) => {
                           const newSelected = new Set(selectedOrders)
                           if (e.target.checked) {
-                            newSelected.add(order.id)
+                            newSelected.add(order.waybill_id)
                           } else {
-                            newSelected.delete(order.id)
+                            newSelected.delete(order.waybill_id)
                           }
                           setSelectedOrders(newSelected)
                         }}
