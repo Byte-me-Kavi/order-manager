@@ -5,13 +5,15 @@ import { flushSync } from 'react-dom'
 import { supabase } from '@/lib/supabase'
 import { useReactToPrint } from 'react-to-print'
 import ReceiptsPrintView from './ReceiptsPrintView'
-import { Loader2, Search, Filter, Plus, CheckCircle2, Printer } from 'lucide-react'
+import { Loader2, Search, Filter, Plus, CheckCircle2, Printer, Trash2 } from 'lucide-react'
 
 export default function AdminDashboard({ user }: { user: any }) {
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [singleOrderToPrint, setSingleOrderToPrint] = useState<any>(null)
   const [fromPhone, setFromPhone] = useState('')
+  const [selectedOrders, setSelectedOrders] = useState<Set<number>>(new Set())
+  const [deleting, setDeleting] = useState(false)
   
   const printRef = useRef<HTMLDivElement>(null)
   const handlePrint = useReactToPrint({
@@ -126,6 +128,68 @@ export default function AdminDashboard({ user }: { user: any }) {
     setGenerating(false)
   }
 
+  const handleDeleteSelected = async () => {
+    if (selectedOrders.size === 0) return alert('No orders selected.')
+    if (!window.confirm(`Are you sure you want to delete ${selectedOrders.size} order(s)?`)) return
+
+    setDeleting(true)
+    const orderIdsToDelete = Array.from(selectedOrders)
+    const ordersToDelete = orders.filter(o => selectedOrders.has(o.id))
+    const waybillIdsToFree = ordersToDelete.map(o => o.waybill_id)
+
+    const { error: deleteError } = await supabase
+      .from('orders')
+      .delete()
+      .in('id', orderIdsToDelete)
+
+    if (deleteError) {
+      alert('Error deleting orders: ' + deleteError.message)
+      setDeleting(false)
+      return
+    }
+
+    const { error: updateError } = await supabase
+      .from('waybills')
+      .update({ is_used: false })
+      .in('waybill_id', waybillIdsToFree)
+
+    if (updateError) console.error('Error freeing waybills:', updateError)
+
+    setSelectedOrders(new Set())
+    await fetchOrders()
+    setDeleting(false)
+  }
+
+  const handleDeleteAllFiltered = async () => {
+    if (filteredOrders.length === 0) return alert('No orders to delete.')
+    if (!window.confirm(`Are you sure you want to delete ALL ${filteredOrders.length} filtered orders? This cannot be undone.`)) return
+
+    setDeleting(true)
+    const waybillIdsToFree = filteredOrders.map(o => o.waybill_id)
+
+    const { error: deleteError } = await supabase
+      .from('orders')
+      .delete()
+      .in('id', filteredOrders.map(o => o.id))
+
+    if (deleteError) {
+      alert('Error deleting orders: ' + deleteError.message)
+      setDeleting(false)
+      return
+    }
+
+    const { error: updateError } = await supabase
+      .from('waybills')
+      .update({ is_used: false })
+      .in('waybill_id', waybillIdsToFree)
+
+    if (updateError) console.error('Error freeing waybills:', updateError)
+
+    setSelectedOrders(new Set())
+    await fetchOrders()
+    setDeleting(false)
+  }
+
   return (
     <div className="space-y-6">
 
@@ -206,6 +270,22 @@ export default function AdminDashboard({ user }: { user: any }) {
             <Printer className="w-4 h-4" />
             Print All Receipts
           </button>
+          <button 
+            onClick={handleDeleteSelected}
+            disabled={deleting || selectedOrders.size === 0}
+            className="flex items-center justify-center gap-2 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 px-4 py-3 md:py-1.5 rounded-xl text-sm font-medium transition-colors shadow-sm disabled:opacity-50"
+          >
+            {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+            Delete Selected
+          </button>
+          <button 
+            onClick={handleDeleteAllFiltered}
+            disabled={deleting || filteredOrders.length === 0}
+            className="flex items-center justify-center gap-2 bg-red-100 text-red-700 hover:bg-red-200 border border-red-300 px-4 py-3 md:py-1.5 rounded-xl text-sm font-medium transition-colors shadow-sm disabled:opacity-50"
+          >
+            {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+            Delete All
+          </button>
         </div>
 
         <div className="flex items-center gap-4 border-t md:border-t-0 pt-4 md:pt-0">
@@ -244,6 +324,20 @@ export default function AdminDashboard({ user }: { user: any }) {
             <table className="w-full text-sm text-left text-slate-700 block md:table">
               <thead className="bg-slate-50 text-slate-600 border-b border-slate-200 hidden md:table-header-group">
                 <tr>
+                  <th className="px-6 py-4 font-medium w-12">
+                    <input 
+                      type="checkbox" 
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+                      checked={filteredOrders.length > 0 && selectedOrders.size === filteredOrders.length}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedOrders(new Set(filteredOrders.map(o => o.id)))
+                        } else {
+                          setSelectedOrders(new Set())
+                        }
+                      }}
+                    />
+                  </th>
                   <th className="px-6 py-4 font-medium">Waybill Id</th>
                   <th className="px-6 py-4 font-medium">Order #</th>
                   <th className="px-6 py-4 font-medium">Receiver Name</th>
@@ -257,7 +351,24 @@ export default function AdminDashboard({ user }: { user: any }) {
               </thead>
               <tbody className="divide-y divide-slate-100 block md:table-row-group">
                 {filteredOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-slate-50 transition-colors block md:table-row bg-white border border-slate-200 md:border-none rounded-2xl md:rounded-none mb-4 md:mb-0 shadow-sm md:shadow-none">
+                  <tr key={order.id} className={`hover:bg-slate-50 transition-colors block md:table-row bg-white border border-slate-200 md:border-none rounded-2xl md:rounded-none mb-4 md:mb-0 shadow-sm md:shadow-none ${selectedOrders.has(order.id) ? 'bg-blue-50/50' : ''}`}>
+                    <td className="px-4 py-3 md:px-6 md:py-4 block md:table-cell border-b border-slate-100 md:border-none">
+                      <div className="flex md:hidden text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Select</div>
+                      <input 
+                        type="checkbox" 
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+                        checked={selectedOrders.has(order.id)}
+                        onChange={(e) => {
+                          const newSelected = new Set(selectedOrders)
+                          if (e.target.checked) {
+                            newSelected.add(order.id)
+                          } else {
+                            newSelected.delete(order.id)
+                          }
+                          setSelectedOrders(newSelected)
+                        }}
+                      />
+                    </td>
                     <td className="px-4 py-3 md:px-6 md:py-4 block md:table-cell border-b border-slate-100 md:border-none">
                       <div className="flex md:hidden text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Waybill Id</div>
                       <span className="font-medium text-indigo-600">{order.waybill_id}</span>

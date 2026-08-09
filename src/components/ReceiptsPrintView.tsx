@@ -51,6 +51,9 @@ const ReceiptsPrintView = forwardRef<HTMLDivElement, ReceiptsPrintViewProps>(
                     <div className="text-gray-800 leading-snug mt-0.5 line-clamp-2">{order.delivery_address}</div>
                     <div className="text-gray-800 leading-snug truncate">{order.city}, {order.district_name}</div>
                     <div className="font-semibold text-gray-900 mt-1">Tel: {order.receiver_phone}</div>
+                    {order.description && (
+                      <div className="text-gray-600 text-[11px] mt-1 line-clamp-2">Desc: {order.description}</div>
+                    )}
                   </div>
 
                   {/* COD Amount Box */}
