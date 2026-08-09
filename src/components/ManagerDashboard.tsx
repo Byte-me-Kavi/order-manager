@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { flushSync } from 'react-dom'
 import { supabase } from '@/lib/supabase'
 import ExcelJS from 'exceljs'
@@ -8,6 +8,7 @@ import { saveAs } from 'file-saver'
 import { useReactToPrint } from 'react-to-print'
 import ReceiptsPrintView from './ReceiptsPrintView'
 import { Download, Plus, Loader2, Printer } from 'lucide-react'
+import citiesData from '@/lib/cities.json'
 
 export default function ManagerDashboard({ user }: { user: any }) {
   const [orders, setOrders] = useState<any[]>([])
@@ -70,8 +71,17 @@ export default function ManagerDashboard({ user }: { user: any }) {
     e.preventDefault()
     setSaving(true)
 
+    const availableCities = (citiesData as Record<string, string[]>)[formData.district_name] || []
+    const exactCity = availableCities.find(c => c.toLowerCase() === formData.city.toLowerCase())
+    if (!exactCity) {
+      alert(`Please select a valid city from the suggestions for ${formData.district_name || 'the selected district'}.`)
+      setSaving(false)
+      return
+    }
+
     const payload = {
       ...formData,
+      city: exactCity,
       waybill_id: Number(formData.waybill_id),
       cod: Number(formData.cod),
       actual_value: formData.actual_value ? Number(formData.actual_value) : null,
@@ -191,6 +201,11 @@ export default function ManagerDashboard({ user }: { user: any }) {
     saveAs(blob, `Manager_Orders_${new Date().getTime()}.xlsx`)
   }
 
+  const cityOptions = useMemo(() => {
+    const availableCities = (citiesData as Record<string, string[]>)[formData.district_name] || []
+    return availableCities.map(city => <option key={city} value={city} />)
+  }, [formData.district_name])
+
   return (
     <div className="space-y-8">
       {/* Entry Form */}
@@ -233,7 +248,10 @@ export default function ManagerDashboard({ user }: { user: any }) {
 
           <div className="space-y-1">
             <label className="text-xs font-medium text-slate-600">City *</label>
-            <input type="text" name="city" required value={formData.city} onChange={handleInputChange} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors" />
+            <input type="text" name="city" list="city-suggestions" required value={formData.city} onChange={handleInputChange} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors" autoComplete="off" />
+            <datalist id="city-suggestions">
+              {cityOptions}
+            </datalist>
           </div>
 
           <div className="space-y-1">
