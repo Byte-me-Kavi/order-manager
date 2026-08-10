@@ -14,6 +14,7 @@ export default function AuthPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isForgotPassword, setIsForgotPassword] = useState(false)
 
   // Password Validation function
   const validatePassword = (pass: string) => {
@@ -77,6 +78,31 @@ export default function AuthPage() {
     }
   }
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setSuccess('')
+    setIsLoading(true)
+
+    if (!email) {
+      setError('Please enter your email address.')
+      setIsLoading(false)
+      return
+    }
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+      if (error) throw error
+      setSuccess('Password reset link sent! Please check your email.')
+    } catch (err: any) {
+      setError(err.message || 'Error sending password reset link.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background gradients for premium feel */}
@@ -86,10 +112,12 @@ export default function AuthPage() {
       <div className="w-full max-w-md bg-white border border-slate-200 p-8 rounded-3xl shadow-xl relative z-10">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-2">
-            {isLogin ? 'Welcome Back' : 'Create Account'}
+            {isForgotPassword ? 'Reset Password' : isLogin ? 'Welcome Back' : 'Create Account'}
           </h1>
           <p className="text-slate-500 text-sm">
-            {isLogin
+            {isForgotPassword
+              ? 'Enter your email to receive a password reset link.'
+              : isLogin
               ? 'Enter your credentials to access your dashboard.'
               : 'Sign up to manage your orders securely.'}
           </p>
@@ -109,7 +137,47 @@ export default function AuthPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        {isForgotPassword ? (
+          <form onSubmit={handleForgotPassword} className="space-y-5">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-slate-700 ml-1">Email Address</label>
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-11 pr-4 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                  placeholder="you@example.com"
+                />
+              </div>
+            </div>
+            
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full flex items-center justify-center gap-2 bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium py-3 px-4 rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mt-4"
+            >
+              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Send Reset Link'}
+            </button>
+            
+            <div className="mt-6 text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsForgotPassword(false)
+                  setError('')
+                  setSuccess('')
+                }}
+                className="text-sm text-slate-500 hover:text-blue-600 transition-colors"
+              >
+                Back to Login
+              </button>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-slate-700 ml-1">Email Address</label>
             <div className="relative">
@@ -126,7 +194,22 @@ export default function AuthPage() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700 ml-1">Password</label>
+            <div className="flex justify-between items-center ml-1 pr-1">
+              <label className="text-sm font-medium text-slate-700">Password</label>
+              {isLogin && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsForgotPassword(true)
+                    setError('')
+                    setSuccess('')
+                  }}
+                  className="text-xs text-blue-600 hover:text-blue-500 font-medium transition-colors"
+                >
+                  Forgot password?
+                </button>
+              )}
+            </div>
             <div className="relative">
               <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input
@@ -177,22 +260,25 @@ export default function AuthPage() {
             )}
           </button>
         </form>
+        )}
 
-        <div className="mt-8 pt-6 border-t border-slate-100 text-center">
-          <p className="text-sm text-slate-500">
-            {isLogin ? "Don't have an account?" : 'Already have an account?'}
-            <button
-              onClick={() => {
-                setIsLogin(!isLogin)
-                setError('')
-                setSuccess('')
-              }}
-              className="ml-2 text-blue-600 hover:text-blue-500 font-medium transition-colors"
-            >
-              {isLogin ? 'Sign Up' : 'Log In'}
-            </button>
-          </p>
-        </div>
+        {!isForgotPassword && (
+          <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+            <p className="text-sm text-slate-500">
+              {isLogin ? "Don't have an account?" : 'Already have an account?'}
+              <button
+                onClick={() => {
+                  setIsLogin(!isLogin)
+                  setError('')
+                  setSuccess('')
+                }}
+                className="ml-2 text-blue-600 hover:text-blue-500 font-medium transition-colors"
+              >
+                {isLogin ? 'Sign Up' : 'Log In'}
+              </button>
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )

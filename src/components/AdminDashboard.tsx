@@ -1,11 +1,9 @@
 'use client'
 
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { flushSync } from 'react-dom'
 import { supabase } from '@/lib/supabase'
-import { useReactToPrint } from 'react-to-print'
 import ReceiptsPrintView from './ReceiptsPrintView'
-import { Loader2, Search, Filter, Plus, CheckCircle2, Printer, Trash2 } from 'lucide-react'
+import { Loader2, Search, Filter, Plus, CheckCircle2, Printer, Trash2, X } from 'lucide-react'
 
 export default function AdminDashboard({ user }: { user: any }) {
   const [orders, setOrders] = useState<any[]>([])
@@ -14,12 +12,56 @@ export default function AdminDashboard({ user }: { user: any }) {
   const [fromPhone, setFromPhone] = useState('')
   const [selectedOrders, setSelectedOrders] = useState<Set<number>>(new Set())
   const [deleting, setDeleting] = useState(false)
+  const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false)
+  const [pendingPrintAction, setPendingPrintAction] = useState<'all' | 'single' | null>(null)
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
   
   const printRef = useRef<HTMLDivElement>(null)
-  const handlePrint = useReactToPrint({
-    contentRef: printRef,
-    documentTitle: `Admin_Receipts_${new Date().getTime()}`
-  })
+
+  const handlePrintClick = (action: 'all' | 'single', order?: any) => {
+    if (action === 'all' && filteredOrders.length === 0) return alert('No orders to print.')
+    setPendingPrintAction(action)
+    if (action === 'single') setSingleOrderToPrint(order)
+    setIsPhoneModalOpen(true)
+  }
+
+  const handleConfirmPrint = async () => {
+    setIsPhoneModalOpen(false)
+    setIsGeneratingPdf(true)
+    
+    if (pendingPrintAction === 'all') {
+      setSingleOrderToPrint(null)
+    }
+
+    // Wait for React to render the hidden print view with new state
+    await new Promise(resolve => setTimeout(resolve, 500))
+
+    const element = printRef.current
+    if (!element) {
+      setIsGeneratingPdf(false)
+      return
+    }
+
+    try {
+      const html2pdf = (await import('html2pdf.js')).default
+      const opt = {
+        margin:       0,
+        filename:     `Receipts_${new Date().getTime()}.pdf`,
+        image:        { type: 'jpeg' as const, quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'mm' as const, format: 'a4', orientation: 'portrait' as const },
+        pagebreak:    { mode: ['css'] }
+      }
+      
+      await html2pdf().set(opt).from(element).save()
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      alert('Error generating PDF. Please try again.')
+    } finally {
+      setIsGeneratingPdf(false)
+      setPendingPrintAction(null)
+    }
+  }
 
   const [startRange, setStartRange] = useState('')
   const [endRange, setEndRange] = useState('')
@@ -254,20 +296,12 @@ export default function AdminDashboard({ user }: { user: any }) {
             />
           </div>
           <button 
-            onClick={() => {
-              if (filteredOrders.length === 0) return alert('No orders to print.')
-              const phone = window.prompt('Enter the telephone number for the FROM address on the receipts:', '')
-              if (phone === null) return
-              flushSync(() => {
-                setFromPhone(phone)
-                setSingleOrderToPrint(null)
-              })
-              handlePrint()
-            }}
-            className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white w-full sm:w-auto px-4 py-3 md:py-1.5 rounded-xl text-sm font-medium transition-colors shadow-sm"
+            onClick={() => handlePrintClick('all')}
+            disabled={isGeneratingPdf}
+            className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white w-full sm:w-auto px-4 py-3 md:py-1.5 rounded-xl text-sm font-medium transition-colors shadow-sm disabled:opacity-50"
           >
-            <Printer className="w-4 h-4" />
-            Print All Receipts
+            {isGeneratingPdf && pendingPrintAction === 'all' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+            {isGeneratingPdf && pendingPrintAction === 'all' ? 'Generating...' : 'Print All Receipts'}
           </button>
           <button 
             onClick={handleDeleteSelected}
@@ -402,20 +436,13 @@ export default function AdminDashboard({ user }: { user: any }) {
                     </td>
                     <td className="px-4 py-3 md:px-6 md:py-4 block md:table-cell text-left md:text-right bg-slate-50 md:bg-transparent rounded-b-2xl md:rounded-none">
                       <button
-                        onClick={() => {
-                          const phone = window.prompt('Enter the telephone number for the FROM address on the receipt:', '')
-                          if (phone === null) return
-                          flushSync(() => {
-                            setFromPhone(phone)
-                            setSingleOrderToPrint(order)
-                          })
-                          handlePrint()
-                        }}
-                        className="p-2 sm:p-1.5 w-full md:w-auto text-indigo-600 md:text-slate-400 md:hover:text-indigo-600 hover:bg-indigo-100 md:hover:bg-indigo-50 rounded-lg md:rounded-md transition-colors flex items-center justify-center gap-2"
+                        onClick={() => handlePrintClick('single', order)}
+                        disabled={isGeneratingPdf}
+                        className="p-2 sm:p-1.5 w-full md:w-auto text-indigo-600 md:text-slate-400 md:hover:text-indigo-600 hover:bg-indigo-100 md:hover:bg-indigo-50 rounded-lg md:rounded-md transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                         title="Print Receipt"
                       >
-                        <Printer className="w-4 h-4" />
-                        <span className="md:hidden text-sm font-medium">Print Receipt</span>
+                        {isGeneratingPdf && singleOrderToPrint?.waybill_id === order.waybill_id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+                        <span className="md:hidden text-sm font-medium">{isGeneratingPdf && singleOrderToPrint?.waybill_id === order.waybill_id ? 'Wait...' : 'Print Receipt'}</span>
                       </button>
                     </td>
                   </tr>
@@ -425,6 +452,50 @@ export default function AdminDashboard({ user }: { user: any }) {
           )}
         </div>
       </div>
+
+      {/* Phone Number Modal */}
+      {isPhoneModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl border border-slate-200">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-slate-900">Print Receipts</h3>
+              <button onClick={() => setIsPhoneModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  FROM Telephone Number
+                </label>
+                <input 
+                  type="text" 
+                  value={fromPhone} 
+                  onChange={e => setFromPhone(e.target.value)} 
+                  placeholder="e.g. 077 123 4567"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                  autoFocus
+                />
+              </div>
+              <div className="flex justify-end gap-3 mt-6">
+                <button 
+                  onClick={() => setIsPhoneModalOpen(false)} 
+                  className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleConfirmPrint} 
+                  disabled={!fromPhone.trim()}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-medium rounded-xl transition-colors"
+                >
+                  Generate PDF
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hidden Print View */}
       <div className="hidden">
