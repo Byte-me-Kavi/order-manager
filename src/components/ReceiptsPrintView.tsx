@@ -45,14 +45,14 @@ const ReceiptsPrintView = forwardRef<HTMLDivElement, ReceiptsPrintViewProps>(
               gridTemplateColumns: '1fr 1fr',
               gridTemplateRows: '1fr 1fr 1fr',
               columnGap: '6mm',
-              rowGap: '3mm',
+              rowGap: '2mm',
               width: '100%',
               height: '100%'
             }}>
               {pageOrders.map((order, i) => (
                 <div key={i} style={{
                   border: '1px solid #9ca3af',
-                  padding: '8px 10px',
+                  padding: '4px 8px',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
@@ -63,7 +63,7 @@ const ReceiptsPrintView = forwardRef<HTMLDivElement, ReceiptsPrintViewProps>(
                 }}>
                   
                   {/* FROM Section */}
-                  <div style={{ fontSize: '11px', marginBottom: '4px', paddingBottom: '4px', borderBottom: '1px solid #e5e7eb', lineHeight: '1.4', flexShrink: 0 }}>
+                  <div style={{ fontSize: '11px', marginBottom: '2px', paddingBottom: '2px', borderBottom: '1px solid #e5e7eb', lineHeight: '1.3', flexShrink: 0 }}>
                     <div style={{ fontWeight: 'bold', color: '#6b7280', marginBottom: '1px', letterSpacing: '0.05em', fontSize: '9px' }}>FROM</div>
                     <div style={{ fontWeight: 600, color: '#111827' }}>Lassana lk</div>
                     <div style={{ color: '#374151' }}>Peradeniya</div>
@@ -71,16 +71,16 @@ const ReceiptsPrintView = forwardRef<HTMLDivElement, ReceiptsPrintViewProps>(
                   </div>
 
                   {/* TO Section */}
-                  <div style={{ fontSize: '13px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', paddingTop: '2px', minHeight: 0 }}>
+                  <div style={{ fontSize: '13px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', paddingTop: '1px', minHeight: 0 }}>
                     <div style={{ fontWeight: 'bold', color: '#6b7280', marginBottom: '1px', letterSpacing: '0.05em', fontSize: '9px' }}>TO</div>
-                    <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#111827', lineHeight: '1.3', wordBreak: 'break-word' }}>{order.receiver_name}</div>
-                    <div style={{ color: '#1f2937', lineHeight: '1.4', marginTop: '2px', wordBreak: 'break-word' }}>{order.delivery_address}</div>
-                    <div style={{ color: '#1f2937', lineHeight: '1.4', wordBreak: 'break-word' }}>{order.city}, {order.district_name}</div>
-                    <div style={{ fontWeight: 600, color: '#111827', marginTop: '4px', fontSize: '13px' }}>Tel: {order.receiver_phone}</div>
+                    <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#111827', lineHeight: '1.2', wordBreak: 'break-word' }}>{order.receiver_name}</div>
+                    <div style={{ color: '#1f2937', lineHeight: '1.2', marginTop: '1px', wordBreak: 'break-word' }}>{order.delivery_address}</div>
+                    <div style={{ color: '#1f2937', lineHeight: '1.2', wordBreak: 'break-word' }}>{order.city}, {order.district_name}</div>
+                    <div style={{ fontWeight: 600, color: '#111827', marginTop: '2px', fontSize: '13px' }}>Tel: {order.receiver_phone}</div>
                     
                     {/* Description - under telephone */}
                     {order.description && (
-                      <div style={{ marginTop: '4px', color: '#1f2937', fontSize: '13px', lineHeight: '1.4', wordBreak: 'break-word' }}>
+                      <div style={{ marginTop: '2px', color: '#1f2937', fontSize: '12px', lineHeight: '1.2', wordBreak: 'break-word' }}>
                         <span style={{ fontWeight: 600, color: '#111827' }}>Desc: </span>
                         {order.description}
                       </div>
@@ -89,10 +89,10 @@ const ReceiptsPrintView = forwardRef<HTMLDivElement, ReceiptsPrintViewProps>(
 
                   {/* COD Amount Box */}
                   <div style={{
-                    marginTop: '4px',
+                    marginTop: '2px',
                     border: '2px solid #1f2937',
                     borderRadius: '6px',
-                    padding: '4px 6px 8px 6px',
+                    padding: '2px 4px 4px 4px',
                     textAlign: 'center',
                     backgroundColor: '#f9fafb',
                     display: 'flex',
@@ -107,11 +107,11 @@ const ReceiptsPrintView = forwardRef<HTMLDivElement, ReceiptsPrintViewProps>(
                   </div>
 
                   {/* Barcode Section */}
-                  <div style={{ marginTop: '4px', display: 'flex', justifyContent: 'center', borderTop: '1px solid #e5e7eb', paddingTop: '4px', flexShrink: 0 }}>
+                  <div style={{ marginTop: '2px', display: 'flex', justifyContent: 'center', borderTop: '1px solid #e5e7eb', paddingTop: '2px', flexShrink: 0 }}>
                     <Barcode 
                       value={order.waybill_id.toString()} 
                       width={1.5} 
-                      height={28} 
+                      height={24} 
                       fontSize={10} 
                       margin={0} 
                       displayValue={true}
