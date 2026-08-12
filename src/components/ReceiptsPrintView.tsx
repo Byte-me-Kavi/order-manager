@@ -55,8 +55,8 @@ const ReceiptsPrintView = forwardRef<HTMLDivElement, ReceiptsPrintViewProps>(
                   padding: '4px 8px',
                   display: 'flex',
                   flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  height: '100%',
+                  justifyContent: 'flex-start',
+                  height: 'fit-content',
                   overflow: 'hidden',
                   borderRadius: '10px',
                   backgroundColor: '#ffffff'
@@ -71,7 +71,7 @@ const ReceiptsPrintView = forwardRef<HTMLDivElement, ReceiptsPrintViewProps>(
                   </div>
 
                   {/* TO Section */}
-                  <div style={{ fontSize: '13px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', paddingTop: '1px', minHeight: 0 }}>
+                  <div style={{ fontSize: '13px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', paddingTop: '1px', minHeight: 0 }}>
                     <div style={{ fontWeight: 'bold', color: '#6b7280', marginBottom: '1px', letterSpacing: '0.05em', fontSize: '9px' }}>TO</div>
                     <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#111827', lineHeight: '1.2', wordBreak: 'break-word' }}>{order.receiver_name}</div>
                     <div style={{ color: '#1f2937', lineHeight: '1.2', marginTop: '1px', wordBreak: 'break-word' }}>{order.delivery_address}</div>
@@ -89,7 +89,7 @@ const ReceiptsPrintView = forwardRef<HTMLDivElement, ReceiptsPrintViewProps>(
 
                   {/* COD Amount Box */}
                   <div style={{
-                    marginTop: '2px',
+                    marginTop: '15px',
                     border: '2px solid #1f2937',
                     borderRadius: '6px',
                     padding: '2px 4px 4px 4px',
