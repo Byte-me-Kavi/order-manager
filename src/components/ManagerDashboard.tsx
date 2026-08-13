@@ -14,6 +14,7 @@ export default function ManagerDashboard({ user }: { user: any }) {
   const [availableWaybills, setAvailableWaybills] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [lockingWaybill, setLockingWaybill] = useState(false)
   const [singleOrderToPrint, setSingleOrderToPrint] = useState<any>(null)
   const [fromPhone, setFromPhone] = useState('')
   const [selectedOrders, setSelectedOrders] = useState<Set<number>>(new Set())
@@ -85,9 +86,14 @@ export default function ManagerDashboard({ user }: { user: any }) {
   })
 
   const fetchOrders = async () => {
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString()
     const [ordersRes, waybillsRes] = await Promise.all([
       supabase.from('orders').select('*').eq('manager_id', user.id).order('created_at', { ascending: false }),
-      supabase.from('waybills').select('waybill_id').eq('is_used', false).order('waybill_id', { ascending: true })
+      supabase.from('waybills')
+        .select('waybill_id')
+        .eq('is_used', false)
+        .or(`locked_at.is.null,locked_at.lt.${tenMinutesAgo},locked_by.eq.${user.id}`)
+        .order('waybill_id', { ascending: true })
     ])
     
     if (ordersRes.error) {
@@ -109,8 +115,64 @@ export default function ManagerDashboard({ user }: { user: any }) {
     fetchOrders()
   }, [])
 
+  // Cleanup lock on unmount or when waybill changes
+  useEffect(() => {
+    const currentWaybillId = formData.waybill_id
+    return () => {
+      if (currentWaybillId) {
+        supabase.from('waybills')
+          .update({ locked_at: null, locked_by: null })
+          .eq('waybill_id', Number(currentWaybillId))
+          .eq('locked_by', user.id)
+          .then()
+      }
+    }
+  }, [formData.waybill_id, user.id])
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
+  }
+
+  const handleWaybillSelect = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newWaybillId = e.target.value
+    const oldWaybillId = formData.waybill_id
+
+    if (newWaybillId === oldWaybillId) return
+
+    setLockingWaybill(true)
+
+    // Unlock the previous waybill if we had one selected
+    if (oldWaybillId) {
+      await supabase.from('waybills')
+        .update({ locked_at: null, locked_by: null })
+        .eq('waybill_id', Number(oldWaybillId))
+        .eq('locked_by', user.id)
+    }
+
+    if (!newWaybillId) {
+      setFormData({ ...formData, waybill_id: '' })
+      setLockingWaybill(false)
+      return
+    }
+
+    // Try to lock the new one
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString()
+    const { data, error } = await supabase.from('waybills')
+      .update({ locked_at: new Date().toISOString(), locked_by: user.id })
+      .eq('waybill_id', Number(newWaybillId))
+      .eq('is_used', false)
+      .or(`locked_at.is.null,locked_at.lt.${tenMinutesAgo},locked_by.eq.${user.id}`)
+      .select()
+
+    if (error || !data || data.length === 0) {
+      alert('This Waybill ID was just selected by someone else. Please choose another.')
+      await fetchOrders()
+      setFormData({ ...formData, waybill_id: '' })
+    } else {
+      setFormData({ ...formData, waybill_id: newWaybillId })
+    }
+    
+    setLockingWaybill(false)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -144,8 +206,8 @@ export default function ManagerDashboard({ user }: { user: any }) {
         alert('Error saving order: ' + insertError.message)
       }
     } else {
-      // Mark waybill as used
-      await supabase.from('waybills').update({ is_used: true }).eq('waybill_id', payload.waybill_id)
+      // Mark waybill as used and unlock it
+      await supabase.from('waybills').update({ is_used: true, locked_at: null, locked_by: null }).eq('waybill_id', payload.waybill_id)
 
       // Clear form except maybe some defaults
       setFormData({
@@ -325,12 +387,19 @@ export default function ManagerDashboard({ user }: { user: any }) {
           
           <div className="space-y-1">
             <label className="text-xs font-medium text-slate-600">Waybill Id *</label>
-            <select name="waybill_id" required value={formData.waybill_id} onChange={(e) => setFormData({...formData, waybill_id: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors [&>option]:bg-white">
-              <option value="" disabled>Select a Waybill</option>
-              {availableWaybills.map(wb => (
-                <option key={wb.waybill_id} value={wb.waybill_id}>{wb.waybill_id}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <select name="waybill_id" required value={formData.waybill_id} onChange={handleWaybillSelect} disabled={lockingWaybill || saving} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors [&>option]:bg-white disabled:opacity-50">
+                <option value="" disabled>Select a Waybill</option>
+                {availableWaybills.map(wb => (
+                  <option key={wb.waybill_id} value={wb.waybill_id}>{wb.waybill_id}</option>
+                ))}
+              </select>
+              {lockingWaybill && (
+                <div className="absolute right-8 top-1/2 -translate-y-1/2">
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                </div>
+              )}
+            </div>
           </div>
           
           <div className="space-y-1">
