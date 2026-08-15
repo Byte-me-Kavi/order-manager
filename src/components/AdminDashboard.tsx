@@ -10,7 +10,7 @@ export default function AdminDashboard({ user }: { user: any }) {
   const [loading, setLoading] = useState(true)
   const [singleOrderToPrint, setSingleOrderToPrint] = useState<any>(null)
   const [fromPhone, setFromPhone] = useState('')
-  const [selectedOrders, setSelectedOrders] = useState<Set<number>>(new Set())
+  const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
   const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false)
   const [pendingPrintAction, setPendingPrintAction] = useState<'all' | 'single' | null>(null)
@@ -175,26 +175,18 @@ export default function AdminDashboard({ user }: { user: any }) {
     if (!window.confirm(`Are you sure you want to delete ${selectedOrders.size} order(s)?`)) return
 
     setDeleting(true)
-    const orderIdsToDelete = Array.from(selectedOrders)
-    const waybillIdsToFree = orderIdsToDelete
+    const idsToDelete = Array.from(selectedOrders)
 
     const { error: deleteError } = await supabase
       .from('orders')
       .delete()
-      .in('waybill_id', waybillIdsToFree)
+      .in('id', idsToDelete)
 
     if (deleteError) {
       alert('Error deleting orders: ' + deleteError.message)
       setDeleting(false)
       return
     }
-
-    const { error: updateError } = await supabase
-      .from('waybills')
-      .update({ is_used: false })
-      .in('waybill_id', waybillIdsToFree)
-
-    if (updateError) console.error('Error freeing waybills:', updateError)
 
     setSelectedOrders(new Set())
     await fetchOrders()
@@ -206,25 +198,18 @@ export default function AdminDashboard({ user }: { user: any }) {
     if (!window.confirm(`Are you sure you want to delete ALL ${filteredOrders.length} filtered orders? This cannot be undone.`)) return
 
     setDeleting(true)
-    const waybillIdsToFree = filteredOrders.map(o => o.waybill_id)
+    const orderIds = filteredOrders.map(o => o.id)
 
     const { error: deleteError } = await supabase
       .from('orders')
       .delete()
-      .in('waybill_id', waybillIdsToFree)
+      .in('id', orderIds)
 
     if (deleteError) {
       alert('Error deleting orders: ' + deleteError.message)
       setDeleting(false)
       return
     }
-
-    const { error: updateError } = await supabase
-      .from('waybills')
-      .update({ is_used: false })
-      .in('waybill_id', waybillIdsToFree)
-
-    if (updateError) console.error('Error freeing waybills:', updateError)
 
     setSelectedOrders(new Set())
     await fetchOrders()
@@ -364,7 +349,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                       checked={filteredOrders.length > 0 && selectedOrders.size === filteredOrders.length}
                       onChange={(e) => {
                         if (e.target.checked) {
-                          setSelectedOrders(new Set(filteredOrders.map(o => o.waybill_id)))
+                          setSelectedOrders(new Set(filteredOrders.map(o => o.id)))
                         } else {
                           setSelectedOrders(new Set())
                         }
@@ -384,19 +369,19 @@ export default function AdminDashboard({ user }: { user: any }) {
               </thead>
               <tbody className="divide-y divide-slate-100 block md:table-row-group">
                 {filteredOrders.map((order) => (
-                  <tr key={order.waybill_id} className={`hover:bg-slate-50 transition-colors block md:table-row bg-white border border-slate-200 md:border-none rounded-2xl md:rounded-none mb-4 md:mb-0 shadow-sm md:shadow-none ${selectedOrders.has(order.waybill_id) ? 'bg-blue-50/50' : ''}`}>
+                  <tr key={order.id} className={`hover:bg-slate-50 transition-colors block md:table-row bg-white border border-slate-200 md:border-none rounded-2xl md:rounded-none mb-4 md:mb-0 shadow-sm md:shadow-none ${selectedOrders.has(order.id) ? 'bg-blue-50/50' : ''}`}>
                     <td className="px-4 py-3 md:px-6 md:py-4 block md:table-cell border-b border-slate-100 md:border-none">
                       <div className="flex md:hidden text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Select</div>
                       <input 
                         type="checkbox" 
                         className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
-                        checked={selectedOrders.has(order.waybill_id)}
+                        checked={selectedOrders.has(order.id)}
                         onChange={(e) => {
                           const newSelected = new Set(selectedOrders)
                           if (e.target.checked) {
-                            newSelected.add(order.waybill_id)
+                            newSelected.add(order.id)
                           } else {
-                            newSelected.delete(order.waybill_id)
+                            newSelected.delete(order.id)
                           }
                           setSelectedOrders(newSelected)
                         }}

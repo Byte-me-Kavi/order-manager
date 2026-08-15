@@ -11,13 +11,11 @@ import citiesData from '@/lib/cities.json'
 
 export default function ManagerDashboard({ user }: { user: any }) {
   const [orders, setOrders] = useState<any[]>([])
-  const [availableWaybills, setAvailableWaybills] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [lockingWaybill, setLockingWaybill] = useState(false)
   const [singleOrderToPrint, setSingleOrderToPrint] = useState<any>(null)
   const [fromPhone, setFromPhone] = useState('')
-  const [selectedOrders, setSelectedOrders] = useState<Set<number>>(new Set())
+  const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
   const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false)
   const [pendingPrintAction, setPendingPrintAction] = useState<'all' | 'single' | null>(null)
@@ -73,7 +71,6 @@ export default function ManagerDashboard({ user }: { user: any }) {
 
   // Form State
   const [formData, setFormData] = useState({
-    waybill_id: '',
     order_number: '',
     receiver_name: '',
     delivery_address: '',
@@ -86,28 +83,18 @@ export default function ManagerDashboard({ user }: { user: any }) {
   })
 
   const fetchOrders = async () => {
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString()
-    const [ordersRes, waybillsRes] = await Promise.all([
-      supabase.from('orders').select('*').eq('manager_id', user.id).order('created_at', { ascending: false }),
-      supabase.from('waybills')
-        .select('waybill_id')
-        .eq('is_used', false)
-        .or(`locked_at.is.null,locked_at.lt.${tenMinutesAgo},locked_by.eq.${user.id}`)
-        .order('waybill_id', { ascending: true })
-    ])
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('manager_id', user.id)
+      .order('created_at', { ascending: false })
     
-    if (ordersRes.error) {
-      console.error('Error fetching orders:', ordersRes.error)
+    if (error) {
+      console.error('Error fetching orders:', error)
     } else {
-      setOrders(ordersRes.data || [])
+      setOrders(data || [])
     }
-
-    if (waybillsRes.error) {
-      console.error('Error fetching waybills:', waybillsRes.error)
-    } else {
-      setAvailableWaybills(waybillsRes.data || [])
-    }
-
+    
     setLoading(false)
   }
 
@@ -115,65 +102,10 @@ export default function ManagerDashboard({ user }: { user: any }) {
     fetchOrders()
   }, [])
 
-  // Cleanup lock on unmount or when waybill changes
-  useEffect(() => {
-    const currentWaybillId = formData.waybill_id
-    return () => {
-      if (currentWaybillId) {
-        supabase.from('waybills')
-          .update({ locked_at: null, locked_by: null })
-          .eq('waybill_id', Number(currentWaybillId))
-          .eq('locked_by', user.id)
-          .then()
-      }
-    }
-  }, [formData.waybill_id, user.id])
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
-  const handleWaybillSelect = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newWaybillId = e.target.value
-    const oldWaybillId = formData.waybill_id
-
-    if (newWaybillId === oldWaybillId) return
-
-    setLockingWaybill(true)
-
-    // Unlock the previous waybill if we had one selected
-    if (oldWaybillId) {
-      await supabase.from('waybills')
-        .update({ locked_at: null, locked_by: null })
-        .eq('waybill_id', Number(oldWaybillId))
-        .eq('locked_by', user.id)
-    }
-
-    if (!newWaybillId) {
-      setFormData({ ...formData, waybill_id: '' })
-      setLockingWaybill(false)
-      return
-    }
-
-    // Try to lock the new one
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString()
-    const { data, error } = await supabase.from('waybills')
-      .update({ locked_at: new Date().toISOString(), locked_by: user.id })
-      .eq('waybill_id', Number(newWaybillId))
-      .eq('is_used', false)
-      .or(`locked_at.is.null,locked_at.lt.${tenMinutesAgo},locked_by.eq.${user.id}`)
-      .select()
-
-    if (error || !data || data.length === 0) {
-      alert('This Waybill ID was just selected by someone else. Please choose another.')
-      await fetchOrders()
-      setFormData({ ...formData, waybill_id: '' })
-    } else {
-      setFormData({ ...formData, waybill_id: newWaybillId })
-    }
-    
-    setLockingWaybill(false)
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -190,7 +122,6 @@ export default function ManagerDashboard({ user }: { user: any }) {
     const payload = {
       ...formData,
       city: exactCity,
-      waybill_id: Number(formData.waybill_id),
       cod: Number(formData.cod),
       actual_value: formData.actual_value ? Number(formData.actual_value) : null,
       manager_id: user.id
@@ -199,19 +130,10 @@ export default function ManagerDashboard({ user }: { user: any }) {
     const { error: insertError } = await supabase.from('orders').insert([payload])
 
     if (insertError) {
-      if (insertError.code === '23505') {
-        alert('This Waybill ID was just taken by someone else! Please select a different one.')
-        fetchOrders()
-      } else {
-        alert('Error saving order: ' + insertError.message)
-      }
+      alert('Error saving order: ' + insertError.message)
     } else {
-      // Mark waybill as used and unlock it
-      await supabase.from('waybills').update({ is_used: true, locked_at: null, locked_by: null }).eq('waybill_id', payload.waybill_id)
-
       // Clear form except maybe some defaults
       setFormData({
-        waybill_id: '',
         order_number: '',
         receiver_name: '',
         delivery_address: '',
@@ -314,26 +236,18 @@ export default function ManagerDashboard({ user }: { user: any }) {
     if (!window.confirm(`Are you sure you want to delete ${selectedOrders.size} order(s)?`)) return
 
     setDeleting(true)
-    const orderIdsToDelete = Array.from(selectedOrders)
-    const waybillIdsToFree = orderIdsToDelete
+    const idsToDelete = Array.from(selectedOrders)
 
     const { error: deleteError } = await supabase
       .from('orders')
       .delete()
-      .in('waybill_id', waybillIdsToFree)
+      .in('id', idsToDelete)
 
     if (deleteError) {
       alert('Error deleting orders: ' + deleteError.message)
       setDeleting(false)
       return
     }
-
-    const { error: updateError } = await supabase
-      .from('waybills')
-      .update({ is_used: false })
-      .in('waybill_id', waybillIdsToFree)
-
-    if (updateError) console.error('Error freeing waybills:', updateError)
 
     setSelectedOrders(new Set())
     await fetchOrders()
@@ -345,25 +259,18 @@ export default function ManagerDashboard({ user }: { user: any }) {
     if (!window.confirm('Are you sure you want to delete ALL your orders? This cannot be undone.')) return
 
     setDeleting(true)
-    const waybillIdsToFree = orders.map(o => o.waybill_id)
+    const orderIds = orders.map(o => o.id)
 
     const { error: deleteError } = await supabase
       .from('orders')
       .delete()
-      .in('waybill_id', waybillIdsToFree)
+      .in('id', orderIds)
 
     if (deleteError) {
       alert('Error deleting orders: ' + deleteError.message)
       setDeleting(false)
       return
     }
-
-    const { error: updateError } = await supabase
-      .from('waybills')
-      .update({ is_used: false })
-      .in('waybill_id', waybillIdsToFree)
-
-    if (updateError) console.error('Error freeing waybills:', updateError)
 
     setSelectedOrders(new Set())
     await fetchOrders()
@@ -384,23 +291,6 @@ export default function ManagerDashboard({ user }: { user: any }) {
           Add New Order
         </h2>
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-slate-600">Waybill Id *</label>
-            <div className="relative">
-              <select name="waybill_id" required value={formData.waybill_id} onChange={handleWaybillSelect} disabled={lockingWaybill || saving} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors [&>option]:bg-white disabled:opacity-50">
-                <option value="" disabled>Select a Waybill</option>
-                {availableWaybills.map(wb => (
-                  <option key={wb.waybill_id} value={wb.waybill_id}>{wb.waybill_id}</option>
-                ))}
-              </select>
-              {lockingWaybill && (
-                <div className="absolute right-8 top-1/2 -translate-y-1/2">
-                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                </div>
-              )}
-            </div>
-          </div>
           
           <div className="space-y-1">
             <label className="text-xs font-medium text-slate-600">Order Number *</label>
@@ -522,7 +412,7 @@ export default function ManagerDashboard({ user }: { user: any }) {
                       checked={orders.length > 0 && selectedOrders.size === orders.length}
                       onChange={(e) => {
                         if (e.target.checked) {
-                          setSelectedOrders(new Set(orders.map(o => o.waybill_id)))
+                          setSelectedOrders(new Set(orders.map(o => o.id)))
                         } else {
                           setSelectedOrders(new Set())
                         }
@@ -541,19 +431,19 @@ export default function ManagerDashboard({ user }: { user: any }) {
               </thead>
               <tbody className="divide-y divide-slate-100 block md:table-row-group">
                 {orders.map((order) => (
-                  <tr key={order.waybill_id} className={`hover:bg-slate-50 transition-colors block md:table-row bg-white border border-slate-200 md:border-none rounded-2xl md:rounded-none mb-4 md:mb-0 shadow-sm md:shadow-none ${selectedOrders.has(order.waybill_id) ? 'bg-blue-50/50' : ''}`}>
+                  <tr key={order.id} className={`hover:bg-slate-50 transition-colors block md:table-row bg-white border border-slate-200 md:border-none rounded-2xl md:rounded-none mb-4 md:mb-0 shadow-sm md:shadow-none ${selectedOrders.has(order.id) ? 'bg-blue-50/50' : ''}`}>
                     <td className="px-4 py-3 md:px-6 md:py-4 block md:table-cell border-b border-slate-100 md:border-none">
                       <div className="flex md:hidden text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Select</div>
                       <input 
                         type="checkbox" 
                         className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
-                        checked={selectedOrders.has(order.waybill_id)}
+                        checked={selectedOrders.has(order.id)}
                         onChange={(e) => {
                           const newSelected = new Set(selectedOrders)
                           if (e.target.checked) {
-                            newSelected.add(order.waybill_id)
+                            newSelected.add(order.id)
                           } else {
-                            newSelected.delete(order.waybill_id)
+                            newSelected.delete(order.id)
                           }
                           setSelectedOrders(newSelected)
                         }}
