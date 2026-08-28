@@ -325,30 +325,56 @@ export default function ManagerDashboard({ user }: { user: any }) {
               name="city" 
               required 
               value={formData.city} 
-              onChange={handleInputChange}
+              onChange={(e) => {
+                handleInputChange(e)
+                setShowCitySuggestions(true)
+              }}
               onFocus={() => setShowCitySuggestions(true)}
               onBlur={() => {
-                setTimeout(() => setShowCitySuggestions(false), 200)
+                setTimeout(() => setShowCitySuggestions(false), 300)
               }}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors" 
+              style={{ fontSize: '16px' }}
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors" 
               autoComplete="off" 
             />
             {showCitySuggestions && filteredCities.length > 0 && (
-              <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-lg mt-1 max-h-48 overflow-y-auto shadow-xl">
-                {filteredCities.map(city => (
-                  <li 
-                    key={city} 
-                    className="px-4 py-3 hover:bg-blue-50 cursor-pointer text-sm text-slate-700 active:bg-blue-100"
-                    onMouseDown={(e) => {
-                      e.preventDefault()
-                      setFormData({ ...formData, city })
-                      setShowCitySuggestions(false)
-                    }}
-                  >
-                    {city}
-                  </li>
-                ))}
-              </ul>
+              <>
+                {/* Mobile: fixed bottom sheet */}
+                <div className="sm:hidden fixed inset-0 z-50 flex flex-col justify-end" onMouseDown={(e) => e.preventDefault()} onTouchStart={(e) => e.preventDefault()}>
+                  <div className="bg-black/30 absolute inset-0" onClick={() => setShowCitySuggestions(false)} />
+                  <ul className="relative bg-white border-t border-slate-200 rounded-t-2xl max-h-[50vh] overflow-y-auto shadow-xl">
+                    <li className="px-4 py-2 text-xs font-medium text-slate-400 uppercase tracking-wider sticky top-0 bg-white border-b border-slate-100">Select City</li>
+                    {filteredCities.map(city => (
+                      <li 
+                        key={city} 
+                        className="px-4 py-3 active:bg-blue-100 cursor-pointer text-sm text-slate-700 border-b border-slate-50"
+                        onClick={() => {
+                          setFormData({ ...formData, city })
+                          setShowCitySuggestions(false)
+                        }}
+                      >
+                        {city}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                {/* Desktop: absolute dropdown */}
+                <ul className="hidden sm:block absolute z-50 w-full bg-white border border-slate-200 rounded-lg mt-1 max-h-48 overflow-y-auto shadow-xl">
+                  {filteredCities.map(city => (
+                    <li 
+                      key={city} 
+                      className="px-4 py-3 hover:bg-blue-50 cursor-pointer text-sm text-slate-700 active:bg-blue-100"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setFormData({ ...formData, city })
+                        setShowCitySuggestions(false)
+                      }}
+                    >
+                      {city}
+                    </li>
+                  ))}
+                </ul>
+              </>
             )}
           </div>
 
