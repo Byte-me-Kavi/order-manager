@@ -334,12 +334,13 @@ export default function ManagerDashboard({ user }: { user: any }) {
               autoComplete="off" 
             />
             {showCitySuggestions && filteredCities.length > 0 && (
-              <ul className="absolute z-10 w-full bg-white border border-slate-200 rounded-lg mt-1 max-h-60 overflow-y-auto shadow-lg">
+              <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-lg mt-1 max-h-48 overflow-y-auto shadow-xl">
                 {filteredCities.map(city => (
                   <li 
                     key={city} 
-                    className="px-4 py-2 hover:bg-blue-50 cursor-pointer text-sm text-slate-700"
-                    onClick={() => {
+                    className="px-4 py-3 hover:bg-blue-50 cursor-pointer text-sm text-slate-700 active:bg-blue-100"
+                    onMouseDown={(e) => {
+                      e.preventDefault()
                       setFormData({ ...formData, city })
                       setShowCitySuggestions(false)
                     }}
