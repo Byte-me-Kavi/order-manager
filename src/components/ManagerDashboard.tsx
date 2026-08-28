@@ -20,6 +20,7 @@ export default function ManagerDashboard({ user }: { user: any }) {
   const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false)
   const [pendingPrintAction, setPendingPrintAction] = useState<'all' | 'single' | null>(null)
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
+  const [showCitySuggestions, setShowCitySuggestions] = useState(false)
 
   const printRef = useRef<HTMLDivElement>(null)
 
@@ -277,10 +278,15 @@ export default function ManagerDashboard({ user }: { user: any }) {
     setDeleting(false)
   }
 
-  const cityOptions = useMemo(() => {
-    const availableCities = (citiesData as Record<string, string[]>)[formData.district_name] || []
-    return availableCities.map(city => <option key={city} value={city} />)
+  const availableCities = useMemo(() => {
+    return (citiesData as Record<string, string[]>)[formData.district_name] || []
   }, [formData.district_name])
+
+  const filteredCities = useMemo(() => {
+    if (!formData.city) return availableCities
+    const lower = formData.city.toLowerCase()
+    return availableCities.filter(c => c.toLowerCase().includes(lower))
+  }, [availableCities, formData.city])
 
   return (
     <div className="space-y-8">
@@ -312,12 +318,37 @@ export default function ManagerDashboard({ user }: { user: any }) {
             </select>
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-1 relative">
             <label className="text-xs font-medium text-slate-600">City *</label>
-            <input type="text" name="city" list="city-suggestions" required value={formData.city} onChange={handleInputChange} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors" autoComplete="off" />
-            <datalist id="city-suggestions">
-              {cityOptions}
-            </datalist>
+            <input 
+              type="text" 
+              name="city" 
+              required 
+              value={formData.city} 
+              onChange={handleInputChange}
+              onFocus={() => setShowCitySuggestions(true)}
+              onBlur={() => {
+                setTimeout(() => setShowCitySuggestions(false), 200)
+              }}
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors" 
+              autoComplete="off" 
+            />
+            {showCitySuggestions && filteredCities.length > 0 && (
+              <ul className="absolute z-10 w-full bg-white border border-slate-200 rounded-lg mt-1 max-h-60 overflow-y-auto shadow-lg">
+                {filteredCities.map(city => (
+                  <li 
+                    key={city} 
+                    className="px-4 py-2 hover:bg-blue-50 cursor-pointer text-sm text-slate-700"
+                    onClick={() => {
+                      setFormData({ ...formData, city })
+                      setShowCitySuggestions(false)
+                    }}
+                  >
+                    {city}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <div className="space-y-1">
